@@ -29,6 +29,8 @@ def receiver(port, receive_queue):
 
 send_buffer = [None, None]
 recv_queue = queue.Queue()
+
+
 send_thread = threading.Thread(target=sender, name = "ansible_sender", args=(send_port, send_queue))
 recv_thread = threading.Thread(target=receiver, name = "ansible_receiver", args=(recv_port,  recv_queue))
 send_thread.daemon = True
