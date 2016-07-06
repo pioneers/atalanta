@@ -29,7 +29,9 @@ def receiver(port, receive_queue):
 
 send_buffer = [None, None]
 recv_queue = queue.Queue()
-send_thread = threading.Thread(target=sender, name = "ansible_sender", args=(send_port, send_queue))
+
+
+send_thread = threading.Thread(target=sender, name = "ansible_sender", args=(send_port, send_buffer))
 recv_thread = threading.Thread(target=receiver, name = "ansible_receiver", args=(recv_port,  recv_queue))
 send_thread.daemon = True
 recv_thread.daemon = True
@@ -38,9 +40,11 @@ recv_thread.start()
 fake_data = [0]
 while(True):
 	fake_data.append(1)
-	send_buffer.insert(fake_data, 0)
+	send_buffer.insert(0, fake_data)
 	time.sleep(0.1)
-	print(recv_queue)
+	print("waiting")
+	if(not recv_queue.empty()):
+		print(recv_queue.get_nowait())
 
 
 	

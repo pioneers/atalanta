@@ -3,6 +3,7 @@ import threading
 import queue
 import time
 data = [0]
+<<<<<<< HEAD
 send_port = 1236
 recv_port = 1235
 
@@ -35,5 +36,11 @@ send_thread.daemon = True
 recv_thread.daemon = True
 send_thread.start()
 recv_thread.start()
+
+while(True):
+	msg = 'No message received'
+	if(not recv_queue.isEmpty()):
+		msg = recv_queue.get_nowait()
+	send_queue.put_nowait(msg)
 
 #write tests
