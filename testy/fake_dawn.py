@@ -39,7 +39,7 @@ recv_thread.start()
 while(True):
 	msg = 'No message received'
 	if(not recv_queue.isEmpty()):
-		msg = recv_queue.get_nowait()
-	send_queue.put_nowait(msg)
+		msg = recv_queue.getnowait()
+		send_queue.putnowait(msg)
 
 #write tests
