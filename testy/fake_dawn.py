@@ -3,7 +3,6 @@ import threading
 import queue
 import time
 data = [0]
-<<<<<<< HEAD
 send_port = 1236
 recv_port = 1235
 

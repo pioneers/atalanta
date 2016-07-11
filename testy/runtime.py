@@ -9,7 +9,6 @@ STUDENT_THREAD_NAME = "student_thread"
 # 0. Set up testing code for the following features. 
 # 1. Have student code throw an exception. Make sure runtime catches gracefully.
 # 2. Have student code go through api to modify state. 
-print("this should be printing")
 def runtime():
     state = [0]
     print("start running studentcode thread")
