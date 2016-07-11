@@ -2,11 +2,6 @@ import socket
 import threading
 import queue
 import time
-data = [0] #for testing purposes
-send_port = 1235
-recv_port = 1236
-
-
 class two_buffer():
 	def __init__(self, condition):
 		self.data = [None, None]
@@ -20,6 +15,8 @@ class two_buffer():
 	def get(self):
 		print(self.get_index)
 		return self.data[self.get_index]
+	def __str__(self):
+		return str(self.data)
 
 processing_cond = threading.RLock()
 
@@ -40,52 +37,19 @@ def buffer_handling(packaged, lock, send_buffer):
 		with lock:
 			pack_state = packaged[0]
 			send_buffer.replace(pack_state)
-
-
-
-def sender(port, send_buffer):
-	host = socket.gethostname()
-	with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:#DGRAM for UDP sockets
-		i = 0
-		while(True):
-			msg = send_buffer[0]
-			s.sendto(msg, (host, send_port))
-			time.sleep(0.02)
-
-def receiver(port, receive_queue):
-	#same thing as the client side from python docs
-	host = socket.gethostname()
-	s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM) #DGRAM for UDP sockets
-	#need to receive data
-	#will be implemented after proof of concept
-	s.bind((host, port))
-	while(True):
-		data, adr = s.recv(2048)
-		unpackaged_data = unpackage(data)
-		recv_queue.put(unpackaged_data)
-		time.sleep(0.02)
-
-recv_queue = queue.Queue()
+		
 
 send_buffer = two_buffer(processing_cond)
-raw_fake_data = [[None]]
-packed_fake_data = [[None]]
+raw_fake_data = [[0]]
+packed_fake_data = [[0]]
 pack_thread = threading.Thread(target=package_data, name = "Ansible_packager", args=(raw_fake_data, packed_fake_data, processing_cond))
 buffer_thread = threading.Thread(target=buffer_handling, name = "buffer_handler", args=(packed_fake_data, processing_cond, send_buffer))
-send_thread = threading.Thread(target=sender, name = "ansible_sender", args=(send_port, send_buffer))
-recv_thread = threading.Thread(target=receiver, name = "ansible_receiver", args=(recv_port,  recv_queue))
-send_thread.daemon = True
-recv_thread.daemon = True
 pack_thread.daemon = True
 buffer_thread.daemon = True
 pack_thread.start()
 buffer_thread.start()
-send_thread.start()
-recv_thread.start()
 
-
-
-
-	
-
-
+while(True):
+	raw_fake_data[0]=[raw_fake_data[0][0]+1]
+	print(send_buffer)
+	time.sleep(1)
