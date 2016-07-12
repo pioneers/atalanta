@@ -2,7 +2,8 @@ import socket
 import threading
 import queue
 import time
-import untime_proto_pb2
+import runtime_proto_pb2
+import fake_dawn
 data = [0] #for testing purposes
 send_port = 1235
 recv_port = 1236
@@ -19,7 +20,6 @@ class two_buffer():
 		self.put_index = (self.put_index + 1) % 2
 		self.get_index = (self.get_index + 1) % 2
 	def get(self):
-		print(self.get_index)
 		return self.data[self.get_index]
 
 processing_cond = threading.RLock()
@@ -27,9 +27,9 @@ processing_cond = threading.RLock()
 
 
 def unpackage(data):
-	return data #need to replace to unpack using protobufs
+	return int.from_bytes(data, byteorder='big') #need to replace to unpack using protobufs
 def package(state):
-	return data
+	return bytes(state)
 ###Start Threads###
 def package_data(raw_state, packed, lock):
 	while(True):
@@ -69,27 +69,39 @@ def receiver(port, receive_queue):
 		unpackaged_data = unpackage(data)
 		recv_queue[0]=unpackaged_data
 
-recv_queue = queue.Queue()
+recv_queue = [[0]]
 
 send_buffer = two_buffer(processing_cond)
-raw_fake_data = [[None]]
-packed_fake_data = [[None]]
+raw_fake_data = [[0]]
+packed_fake_data = [[0]]
+dawn_buffer = [0]
+
+
 pack_thread = threading.Thread(target=package_data, name = "Ansible_packager", args=(raw_fake_data, packed_fake_data, processing_cond))
 buffer_thread = threading.Thread(target=buffer_handling, name = "buffer_handler", args=(packed_fake_data, processing_cond, send_buffer))
 send_thread = threading.Thread(target=sender, name = "ansible_sender", args=(send_port, send_buffer))
 recv_thread = threading.Thread(target=receiver, name = "ansible_receiver", args=(recv_port,  recv_queue))
+dawn_send_thread = threading.Thread(target=fake_dawn.sender, name = "dawn_sender", args=(recv_port, dawn_buffer))
+dawn_recv_thread = threading.Thread(target=fake_dawn.receiver, name = "dawn_receiver", args=(send_port, dawn_buffer))
 send_thread.daemon = True
 recv_thread.daemon = True
 pack_thread.daemon = True
 buffer_thread.daemon = True
+dawn_send_thread.daemon = True
+dawn_recv_thread.daemon = True
 pack_thread.start()
 buffer_thread.start()
 send_thread.start()
 recv_thread.start()
+dawn_recv_thread.start()
+dawn_send_thread.start() 
 
+while(True):
+	raw_fake_data[0]=[raw_fake_data[0][0]+1]
+	print("packed fake data:" + str(packed_fake_data))
+	print("raw fake data: "+str(raw_fake_data))
+	print("received from fake_dawn:" + str(recv_queue))
+	time.sleep(.05)
 
-
-
-	
 
 

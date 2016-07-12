@@ -11,8 +11,8 @@ def sender(port, send_queue):
 	with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:#DGRAM for UDP sockets
 		while(True):
 			msg = None
-			if(not send_queue.empty):
-				msg = send_queue.getnowait()
+			msg = bytes(send_queue[0])
+			#msg = bytes([5])
 			s.sendto(msg, (host, send_port))
 def receiver(port, receive_queue):
 	#same thing as the client side from python docs
@@ -23,23 +23,6 @@ def receiver(port, receive_queue):
 	while(True):
 		#would actuall be:
 		msg, addr = s.recvfrom(2048)
-		recv_queue.putnowait(msg)
-
-send_queue = queue.Queue()
-recv_queue = queue.Queue()
-
-
-send_thread = threading.Thread(target=sender, name = "fake_dawn_sender", args=(send_port, send_queue))
-recv_thread = threading.Thread(target=receiver, name = "fake_dawn_receiver", args=(recv_port,  recv_queue))
-send_thread.daemon = True
-recv_thread.daemon = True
-send_thread.start()
-recv_thread.start()
-
-while(True):
-	msg = 'No message received'
-	if(not recv_queue.isEmpty()):
-		msg = recv_queue.getnowait()
-		send_queue.putnowait(msg)
+		receive_queue[0]=msg
 
 #write tests

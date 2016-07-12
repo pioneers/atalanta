@@ -29,9 +29,8 @@ def package_data(raw_state, packed, lock):
 	while(True):
 		if (not raw_state is None):
 			with lock:
-				pack_state = raw_state#add actual packaging here
+				pack_state = unpackage(raw_state)#add actual packaging here
 				packed[0]=pack_state #insert other mutable data structure here. Used to make it easier
-
 def buffer_handling(packaged, lock, send_buffer):
 	while(True):
 		with lock:
@@ -49,7 +48,10 @@ buffer_thread.daemon = True
 pack_thread.start()
 buffer_thread.start()
 
-while(True):
+#test one
+for i in range(10):
 	raw_fake_data[0]=[raw_fake_data[0][0]+1]
 	print(send_buffer)
-	time.sleep(1)
+	time.sleep(.1)
+assert send_buffer.data==[[[10]],[[10]]], "initial test" 
+print("passed test one")
