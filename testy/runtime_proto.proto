@@ -8,9 +8,9 @@ message RuntimeData {
 
 	}
 	message SensorData {
-		int32 type = 1;
+		string type = 1;
 		float value =2;
-		int64 id = 3;
+		string id = 3;
 	}
 	repeated SensorData sensor = 2;
 	State robot_state = 1;

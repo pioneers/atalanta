@@ -4,6 +4,7 @@ import queue
 import time
 import runtime_proto_pb2
 import fake_dawn
+import random
 data = [0] #for testing purposes
 send_port = 1235
 recv_port = 1236
@@ -29,7 +30,14 @@ processing_cond = threading.RLock()
 def unpackage(data):
 	return int.from_bytes(data, byteorder='big') #need to replace to unpack using protobufs
 def package(state):
-	return bytes(state)
+	proto_message = runtime_proto_pb2.RuntimeData()
+	proto_message.robot_state = runtime_proto_pb2.RuntimeData.STUDENT_RUNNING
+	test_sensor = proto_message.sensor.add()
+	test_sensor.id = 'test_sensor'
+	test_sensor.type = 'MOTOR_SCALAR'
+	test_sensor.value = state[0]
+
+	return bytes(proto_message.SerializeToString())
 ###Start Threads###
 def package_data(raw_state, packed, lock):
 	while(True):
@@ -81,23 +89,24 @@ pack_thread = threading.Thread(target=package_data, name = "Ansible_packager", a
 buffer_thread = threading.Thread(target=buffer_handling, name = "buffer_handler", args=(packed_fake_data, processing_cond, send_buffer))
 send_thread = threading.Thread(target=sender, name = "ansible_sender", args=(send_port, send_buffer))
 recv_thread = threading.Thread(target=receiver, name = "ansible_receiver", args=(recv_port,  recv_queue))
-dawn_send_thread = threading.Thread(target=fake_dawn.sender, name = "dawn_sender", args=(recv_port, dawn_buffer))
-dawn_recv_thread = threading.Thread(target=fake_dawn.receiver, name = "dawn_receiver", args=(send_port, dawn_buffer))
+#dawn_send_thread = threading.Thread(target=fake_dawn.sender, name = "dawn_sender", args=(recv_port, dawn_buffer))
+#dawn_recv_thread = threading.Thread(target=fake_dawn.receiver, name = "dawn_receiver", args=(send_port, dawn_buffer))
 send_thread.daemon = True
 recv_thread.daemon = True
 pack_thread.daemon = True
 buffer_thread.daemon = True
-dawn_send_thread.daemon = True
-dawn_recv_thread.daemon = True
+#dawn_send_thread.daemon = True
+#dawn_recv_thread.daemon = True
 pack_thread.start()
 buffer_thread.start()
 send_thread.start()
 recv_thread.start()
-dawn_recv_thread.start()
-dawn_send_thread.start() 
+#dawn_recv_thread.start()
+#dawn_send_thread.start() 
 
 while(True):
-	raw_fake_data[0]=[raw_fake_data[0][0]+1]
+	random_data = random.uniform(-1, 1)
+	raw_fake_data[0]=[random_data]
 	print("packed fake data:" + str(packed_fake_data))
 	print("raw fake data: "+str(raw_fake_data))
 	print("received from fake_dawn:" + str(recv_queue))
