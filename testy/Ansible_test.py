@@ -5,6 +5,7 @@ import time
 import runtime_proto_pb2
 import fake_dawn
 import random
+import ansible_pb2
 data = [0] #for testing purposes
 send_port = 1235
 recv_port = 1236
@@ -28,7 +29,13 @@ processing_cond = threading.RLock()
 
 
 def unpackage(data):
-	return int.from_bytes(data, byteorder='big') #need to replace to unpack using protobufs
+	 #need to replace to unpack using protobufs
+	 dawn_data = ansible_pb2.DawnData()
+	 try:
+	 	dawn_data.ParseFromString(data)
+	 	return dawn_data
+	 except:
+	 	return data
 def package(state):
 	proto_message = runtime_proto_pb2.RuntimeData()
 	proto_message.robot_state = runtime_proto_pb2.RuntimeData.STUDENT_RUNNING
