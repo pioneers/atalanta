@@ -1,109 +1,115 @@
-import threading
+import multiprocessing
 import time
 import sys
 import traceback
 import Ansible
 import studentCode
+import stateManager
 
 
 STUDENT_THREAD_NAME = "student_thread"
 
 from runtimeUtil import *
 
-STUDENT_THREAD_NAME = "studentThread"
-STUDENT_THREAD_HZ = 5 # Number of times to execute studentcode.main per second
-DEBUG_DELIMITER_STRING = "****************** RUNTIME DEBUG ******************"
-# TODO:
-# 0. Set up testing code for the following features. 
-# 1. Have student code throw an exception. Make sure runtime catches gracefully.
-# 2. Have student code go through api to modify state. 
-# 3. Create Error class for handling various errors/events
 
-allThreads = {}
-badThings = threading.Condition()
-globalBadThing = None
-#socket constants
-send_port = 1235
-recv_port = 1236
-actual_state = {'device_id':['type', 'value']}
-actual_state['robot_state'] = 2
+# TODO:
+# 0. Set up testing code for the following features.
+# 1. Have student code go through api to modify state.
+# 2. Imposing timeouts on student code (infinite loop, try-catch)
+# 3. Figure out how to kill student thread.
+# 4. Integrate with Bob's socket code: spin up a communication process
+# 5. stateManager throw badThing on processNameNotFound
+# 6. refactor process startup code: higher order function
+
+allProcesses = {}
+badThings = multiprocessing.Condition()
+globalBadThing = "unititialized globalBadThing"
+officialState = {'deviceId':['deviceType', 'value']}
+officialState['studentCodeState'] = 2 
+
+sendPort = 1235
+recvPort = 1236
+
 
 def runtime():
+  badThingsQueue = multiprocessing.Queue()
+  stateQueue = multiprocessing.Queue()
+  spawnProcess = processFactory(badThingsQueue, stateQueue)
   restartCount = 0
-  state = [0]
   try:
+    spawnProcess(PROCESS_NAMES.STATE_MANAGER, startStateManager)
     while True:
       if restartCount >= 5:
-        print(DEBUG_DELIMITER_STRING)
+        print(RUNTIME_INFO.DEBUG_DELIMITER_STRING.value)
         print("Too many restarts, terminating")
         break
-      print(DEBUG_DELIMITER_STRING)
+      print(RUNTIME_INFO.DEBUG_DELIMITER_STRING.value)
       print("Starting studentCode attempt: %s" % (restartCount,))
-      runStudentCode(state)
-      runAnsibleHelper(state)
-      badThings.acquire()
-      badThings.wait()
-      print(DEBUG_DELIMITER_STRING)
-      print(globalBadThing)
-      badThings.release()
+      spawnProcess(PROCESS_NAMES.STUDENT_CODE, runStudentCode)
+      while True:
+        globalBadThing = badThingsQueue.get(block=True)
+        print(RUNTIME_INFO.DEBUG_DELIMITER_STRING.value)
+        print(globalBadThing)
+        if globalBadThing.event == BAD_EVENTS.STUDENT_CODE_ERROR:
+          break
+      stateQueue.put([SM_COMMANDS.RESET])
       restartCount += 1
   except:
-    print(DEBUG_DELIMITER_STRING)
+    print(RUNTIME_INFO.DEBUG_DELIMITER_STRING.value)
     print("Funtime Runtime Had Too Much Fun")
     print(traceback.print_exception(*sys.exc_info()))
 
-def initRobotState(state):
-  state[0] = 0
-
-def runStudentCode(state):
-  initRobotState(state)
-  studentThread = threading.Thread(target=runStudentCodeHelper, name=STUDENT_THREAD_NAME, args=(state,))
-  allThreads[STUDENT_THREAD_NAME] = studentThread
-  studentThread.daemon = True
-  studentThread.start()
-
-def runStudentCodeHelper(state):
-  global globalBadThing
+def runStudentCode(badThingsQueue, stateQueue, pipe):
   try:
-    studentCode.setup(state)
+    studentCode.setup(pipe)
     nextCall = time.time()
     while True:
-      studentCode.main(state)
-      nextCall += 1.0/STUDENT_THREAD_HZ
+      studentCode.main(stateQueue, pipe)
+      nextCall += 1.0/RUNTIME_INFO.STUDENT_CODE_HZ.value
       time.sleep(nextCall - time.time())
   except Exception:
-    badThings.acquire()
-    globalBadThing = BadThing(sys.exc_info(), None)
-    badThings.notify()
-    badThings.release()
+    badThingsQueue.put(BadThing(sys.exc_info(), None))
 
-def runAnsibleHelper(state):
-    global globalBadThing
-    recv_queue = [[0]]
-    processing_cond = threading.RLock()
+def runAnsibleHelper(badThingsQueue, stateQueue, sendPipe, recvPipe): #Could maybe make these 1 two-way pipe, need to be discussed.
+  global globalBadThing
+  processingCond = threading.RLock()
 
-    send_buffer = two_buffer(processing_cond)
-    raw_fake_data = [[0]]
-    packed_fake_data = [[0]]
-    dawn_buffer = [0]
+  sendBuffer = two_buffer(processingCond)
+  packedData = [[0]]
+  dawnBuffer = [0]
 
-    try:
-        pack_thread = threading.Thread(target=package_data, name = "Ansible_packager", args=(raw_fake_data, packed_fake_data, processing_cond))
-        buffer_thread = threading.Thread(target=buffer_handling, name = "buffer_handler", args=(packed_fake_data, processing_cond, send_buffer))
-        send_thread = threading.Thread(target=sender, name = "ansible_sender", args=(send_port, send_buffer))
-        recv_thread = threading.Thread(target=receiver, name = "ansible_receiver", args=(recv_port,  recv_queue))
-        send_thread.daemon = True
-        recv_thread.daemon = True
-        pack_thread.daemon = True
-        buffer_thread.daemon = True
-        pack_thread.start()
-        buffer_thread.start()
-        send_thread.start()
-        recv_thread.start()
-    except:
-        badThings.acquire()
-        globalBadThing = BadThing(sys.exc_info(), None)
-        badThings.notify()
-        badThings.release()
+  try:
+      pack_thread = threading.Thread(target=package_data, name = "Ansible_packager", args=(packedData, processingCond, sendPipe, badThingsQueue))
+      buffer_thread = threading.Thread(target=buffer_handling, name = "buffer_handler", args=(packedData, processingCond, sendBuffer, badThingsQueue))
+      send_thread = threading.Thread(target=sender, name = "ansible_sender", args=(sendPort, sendBuffer, badThingsQueue))
+      recv_thread = threading.Thread(target=receiver, name = "ansible_receiver", args=(recvPort,  recvPipe, badThingsQueue))
+      send_thread.daemon = True
+      recv_thread.daemon = True
+      pack_thread.daemon = True
+      buffer_thread.daemon = True
+      pack_thread.start()
+      buffer_thread.start()
+      send_thread.start()
+      recv_thread.start()
+  except:
+      badThingsQueue.put(BadThing(sys.exc_info(), None, event=BAD_EVENTS.STUDENT_CODE_ERROR))
+
+def startStateManager(badThingsQueue, stateQueue, runtimePipe):
+  try:
+    SM = stateManager.StateManager(badThingsQueue, stateQueue, runtimePipe)
+    SM.start()
+  except Exception:
+    badThingsQueue.put(BadThing(sys.exc_info(), None))
+
+def processFactory(badThingsQueue, stateQueue):
+  def spawnProcessHelper(processName, helper):
+    pipeToChild, pipeFromChild = multiprocessing.Pipe()
+    if processName != PROCESS_NAMES.STATE_MANAGER:
+      stateQueue.put([SM_COMMANDS.ADD, processName, pipeToChild], block=True)
+    newProcess = multiprocessing.Process(target=helper, name=processName.value, args=(badThingsQueue, stateQueue, pipeFromChild))
+    allProcesses[processName] = newProcess
+    newProcess.daemon = True
+    newProcess.start()
+  return spawnProcessHelper
 
 runtime()

@@ -5,6 +5,7 @@ message RuntimeData {
 		STUDENT_RUNNING = 1;
 		STUDENT_STOPPED = 2;
 		TELEOP = 3;
+		AUTO =4;
 
 	}
 	message SensorData {

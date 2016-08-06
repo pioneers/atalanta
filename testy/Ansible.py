@@ -6,12 +6,19 @@ import runtime_proto_pb2
 import fake_dawn
 import random
 import ansible_pb2
+from runtimeUtil import *
 data = [0] #for testing purposes
 send_port = 1235
 recv_port = 1236
-
-
-class two_buffer():
+stateToEnum = {0:runtime_proto_pb2.STUDENT_CRASHED,
+			   1:runtime_proto_pb2.STUDENT_RUNNING,
+			   2:runtime_proto_pb2.STUDENT_STOPPED,
+			   3:runtime_proto_pb2.TELEOP,
+			   4:runtime_proto_pb2.AUTO
+				}
+#Custom buffer for handling states. Holds two states, updates one and sends the other.
+#If states are updated, the newest state becomes the state that is sent and the other becomes the one getting updated
+class two_buffer(): 
 	def __init__(self, condition):
 		self.data = [None, None]
 		self.condition = condition
@@ -27,62 +34,77 @@ class two_buffer():
 processing_cond = threading.RLock()
 
 
-
+###Protobuf handlers###
+#Function for handling unpackaging of protobufs from Dawn
 def unpackage(data):
-	 #need to replace to unpack using protobufs
-	 dawn_data = ansible_pb2.DawnData()
+	 dawnData = ansible_pb2.DawnData()
 	 try:
-	 	dawn_data.ParseFromString(data)
+	 	dawn_data.ParseFromString(data)#Change from bytes to actual data
 	 	return dawn_data
-	 except:
+	 except:#if it's a None class, TODO: handle this here instead sending a message that no data is coming from dawn
 	 	return data
+#Handles packaging and sending state to dawn in the form of protobuf we define
 def package(state):
 	proto_message = runtime_proto_pb2.RuntimeData()
-	proto_message.robot_state = runtime_proto_pb2.RuntimeData.STUDENT_RUNNING
-	test_sensor = proto_message.sensor.add()
-	test_sensor.id = 'test_sensor'
-	test_sensor.type = 'MOTOR_SCALAR'
-	test_sensor.value = state[0]
+	for devId, devVal in state.items(): #Parse through entire state and package it
+		if(devID is 'studentCodeState'):
+			proto_message.robot_state = stateToEnum[devVal] #check if we are dealing with sensor data or student code state
+		else:
+			test_sensor = proto_message.sensor.add() #Create new submessage for each sensor and add corresponding values
+			test_sensor.id = devId
+			test_sensor.type = devVal[0]
+			test_sensor.value = state[1]
 
-	return bytes(proto_message.SerializeToString())
-###Start Threads###
-def package_data(raw_state, packed, lock):
+	return bytes(proto_message.SerializeToString()) #return the serialized data as bytes to be sent to Dawn
+
+
+
+###Start Ansible Thread Chain###
+def package_data(packed, lock, pipe, badThingsQueue):
 	while(True):
-		if (not raw_state is None):
+		try:
+			rawState = pipe.recv() #Pull state from the pipe
+			if (rawState):
+				with lock:
+					packState = package(raw_state[0])
+					packed[0]=packState ##Used list mutation as it's an atomic operation
+		except Exception:
+			badThingsQueue.put(BadThing(sys.exc_info(), None))
+
+def buffer_handling(packaged, lock, sendBuffer, badThingsQueue): #made this separate since changing list locations in the buffer instance isn't atomic
+	while(True):
+		try:
 			with lock:
-				pack_state = package(raw_state[0])#add actual packaging here
-				packed[0]=pack_state #insert other mutable data structure here. Used to make it easier
-
-def buffer_handling(packaged, lock, send_buffer):
-	while(True):
-		with lock:
-			pack_state = packaged[0]
-			send_buffer.replace(pack_state)
+				packState = packaged[0]
+				sendBuffer.replace(pack_state) 
+		except Exception:
+			badThingsQueue.put(BadThing(sys.exc_info(), None))
 
 
 
-def sender(port, send_buffer):
+def sender(port, sendBuffer, badThingsQueue):
 	host = socket.gethostname()
 	with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:#DGRAM for UDP sockets
-		i = 0
-		while(True):
-			msg = send_buffer.get()
+		while(True): #constantly send the state to Dawn
 			try:
+				msg = sendBuffer.get() 
 				s.sendto(msg, (host, send_port))
-			except:
-				pass#can be changed to alerting the main python process
+			except Exception:
+				badThingsQueue.put(BadThing(sys.exc_info(), None))
 
-def receiver(port, receive_queue):
+
+def receiver(port, receivePipe, badThingsQueue):
 	#same thing as the client side from python docs
 	host = socket.gethostname()
 	s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM) #DGRAM for UDP sockets
-	#need to receive data
-	#will be implemented after proof of concept
 	s.bind((host, port))
 	while(True):
-		data = s.recv(2048)
-		unpackaged_data = unpackage(data)
-		recv_queue[0]=unpackaged_data
+		try:
+			data = s.recv(2048) #can be changed later if we need more 
+			unpackaged_data = unpackage(data)
+			receivePipe.send(unpackaged_data) #send to stateManager
+		except Exception: 
+			badThingsQueue.put(BadThing(sys.exc_info(), None))
 
 		
 
