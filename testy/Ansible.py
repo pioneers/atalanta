@@ -106,6 +106,41 @@ def receiver(port, receivePipe, badThingsQueue):
 		except Exception: 
 			badThingsQueue.put(BadThing(sys.exc_info(), None))
 
+
+def tcpSender(port, sendQueue, badThingsQueue):
+	try:
+		host = socket.gethostname()
+		with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+			s.bind((host, port))
+			s.listen(1)
+			conn, addr = s.accept()
+			with conn:
+				print('Connected by', addr)
+	        	while True:
+	        		try:
+		            	conn.sendall(sendQueue.get_nowait())
+		            except QueueEmpty:
+		            	pass
+	except Exception:
+		badThingsQueue.put(BadThing(sys.exc_info(),None))
+
+def tcpReceiver(port, recvQueue, badThingsQueue):
+	try:
+		host = socket.gethostname()
+		with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+			s.bind((host, port))
+			while(True):
+				recvData = s.recv(2048)
+				recvQueue.put(recvData)
+	except Exception:
+		badThingsQueue.put(BadThing(sys.exc_info(), None))
+
+
+
+
+        
+
+
 		
 
 

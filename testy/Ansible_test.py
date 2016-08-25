@@ -1,11 +1,11 @@
 import socket
 import threading
-import queue
+#import queue
 import time
-import runtime_proto_pb2
+#import runtime_proto_pb2
 import fake_dawn
 import random
-import ansible_pb2
+#import ansible_pb2
 data = [0] #for testing purposes
 send_port = 1235
 recv_port = 1236
@@ -29,20 +29,26 @@ processing_cond = threading.RLock()
 
 
 def unpackage(data):
+	return data
 	 #need to replace to unpack using protobufs
-	 dawn_data = ansible_pb2.DawnData()
-	 try:
-	 	dawn_data.ParseFromString(data)
-	 	return dawn_data
-	 except:
-	 	return data
+"""
+ dawn_data = ansible_pb2.DawnData()
+ try:
+ 	dawn_data.ParseFromString(data)
+ 	return dawn_data
+ except:
+ 	return data
+"""
 def package(state):
+	return bytes(state)
+	"""
 	proto_message = runtime_proto_pb2.RuntimeData()
 	proto_message.robot_state = runtime_proto_pb2.RuntimeData.STUDENT_RUNNING
 	test_sensor = proto_message.sensor.add()
 	test_sensor.id = 'test_sensor'
 	test_sensor.type = 'MOTOR_SCALAR'
 	test_sensor.value = state[0]
+	"""
 
 	return bytes(proto_message.SerializeToString())
 ###Start Threads###
@@ -110,13 +116,11 @@ send_thread.start()
 recv_thread.start()
 #dawn_recv_thread.start()
 #dawn_send_thread.start() 
-
+counter = 0
 while(True):
-	random_data = random.uniform(-1, 1)
-	raw_fake_data[0]=[random_data]
-	print("packed fake data:" + str(packed_fake_data))
-	print("raw fake data: "+str(raw_fake_data))
-	print("received from fake_dawn:" + str(recv_queue))
+	raw_fake_data[0]=[counter]
+	print("received from dawn:" + str(recv_queue))
+	counter += 1
 	time.sleep(.05)
 
 
