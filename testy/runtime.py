@@ -1,5 +1,7 @@
 import multiprocessing
 import time
+import os
+import signal
 import sys
 import traceback
 
@@ -46,10 +48,11 @@ def runtime():
             (newBadThing.event == BAD_EVENTS.STUDENT_CODE_TIMEOUT):
           break
       stateQueue.put([SM_COMMANDS.RESET])
+      os.kill(allProcesses[PROCESS_NAMES.STUDENT_CODE].pid, signal.SIGKILL)
       restartCount += 1
-      print(RUNTIME_INFO.DEBUG_DELIMITER_STRING.value)
-      print("Funtime Runtime is done having fun.")
-      print("TERMINATING")
+    print(RUNTIME_INFO.DEBUG_DELIMITER_STRING.value)
+    print("Funtime Runtime is done having fun.")
+    print("TERMINATING")
   except:
     print(RUNTIME_INFO.DEBUG_DELIMITER_STRING.value)
     print("Funtime Runtime Had Too Much Fun")
