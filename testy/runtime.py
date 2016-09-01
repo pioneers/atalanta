@@ -19,6 +19,7 @@ from runtimeUtil import *
 # 6. refactor process startup code: higher order function
 # 7. Writeup how all this works
 # 8. Investigate making BadThing extend exception
+# DONE 9. Add count for number of times studentCode.main has run
 
 allProcesses = {}
 
@@ -78,6 +79,8 @@ def runStudentCode(badThingsQueue, stateQueue, pipe):
       studentCode.main(stateQueue, pipe)
       signal.alarm(0)
       nextCall += 1.0/RUNTIME_INFO.STUDENT_CODE_HZ.value
+      # TODO: Replace with count of times we call main
+      stateQueue.put([SM_COMMANDS.HELLO])
       time.sleep(nextCall - time.time())
   except TimeoutError:
     badThingsQueue.put(BadThing(sys.exc_info(), None, event=BAD_EVENTS.STUDENT_CODE_TIMEOUT))
