@@ -30,6 +30,7 @@ class SM_COMMANDS(Enum):
   ADD                 = ()
   HELLO               = ()
   READY               = ()
+  GET_VAL             = ()
 
 class RUNTIME_INFO(Enum):
   STUDENT_CODE_TIMEOUT = 3

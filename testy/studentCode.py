@@ -10,7 +10,9 @@ def setup(pipe):
 def main(stateQueue, pipe):
   # while True:
   #   pass
-  print("Robot Info:", )
+  stateQueue.put([SM_COMMANDS.GET_VAL])
+  response = pipe.recv()
+  print("State Info:", response)
   print("Saying hello to the other side")
   state = Robot.getValue("")
   print("Hello from the other side %d" % (state,))
