@@ -47,7 +47,7 @@ class StateManager(object):
       elif cmd_type == SM_COMMANDS.ADD:
         self.addPipe(request[1], request[2])
       elif cmd_type == SM_COMMANDS.GET_VAL:
-        self.processMapping[PROCESS_NAMES.STUDENT_CODE].send(self.getValue("float1")) #only sends 1 val currently
+        self.processMapping[PROCESS_NAMES.STUDENT_CODE].send(self.getValue(request[1])) #only sends 1 val currently
       elif cmd_type == SM_COMMANDS.HELLO:
         print("HELLO")
         # self.state[0] -= 1
