@@ -18,7 +18,15 @@ class StateManager(object):
     self.processMapping = {PROCESS_NAMES.RUNTIME: runtimePipe}
 
   def initRobotState(self):
-    self.state = [5]
+    self.state = {
+      'boolean': 230984,
+      'int': False,
+      'list': {
+        'what': 1
+      },
+      'dictionary': [1, 2, 'hi'],
+      'lambda': lambda x: x**2
+    }
 
   def addPipe(self, processName, pipe):
     self.processMapping[processName] = pipe
