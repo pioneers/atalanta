@@ -10,7 +10,7 @@ def setup(pipe):
 def main(stateQueue, pipe):
   # while True:
   #   pass
-  stateQueue.put([SM_COMMANDS.GET_VAL])
+  stateQueue.put([SM_COMMANDS.GET_VAL, "bool1"])
   response = pipe.recv()
   print("State Info:", response)
   print("Saying hello to the other side")
