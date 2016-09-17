@@ -24,19 +24,23 @@ class StateManager(object):
     self.processMapping[processName] = pipe
     pipe.send(SM_COMMANDS.READY)
 
+  def getValue(string):
+    return self.state[string]
+    
   def start(self):
     # TODO: Make sure request is a list/tuple before attempting to access
     # And that there are the correct number of elements
     while True:
       request = self.input.get(block=True)
+      cmd_type = request[0]
 
-      if request[0] == SM_COMMANDS.RESET:
+      if cmd_type == SM_COMMANDS.RESET:
         self.initRobotState()
 
-      elif request[0] == SM_COMMANDS.ADD:
+      elif cmd_type == SM_COMMANDS.ADD:
         self.addPipe(request[1], request[2])
 
-      elif request[0] == SM_COMMANDS.HELLO:
+      elif cmd_type == SM_COMMANDS.HELLO:
         self.state[0] -= 1
         self.processMapping[PROCESS_NAMES.STUDENT_CODE].send(self.state[0])
       # TODO: Add better error description
