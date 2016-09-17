@@ -18,21 +18,20 @@ class StateManager(object):
     self.processMapping = {PROCESS_NAMES.RUNTIME: runtimePipe}
 
   def initRobotState(self):
-    self.state = {
-      'boolean': 230984,
-      'int': False,
-      'list': {
-        'what': 1
-      },
-      'dictionary': [1, 2, 'hi'],
-      'lambda': lambda x: x**2
-    }
+    self.state = {"int1" : 112314,
+     "float1": 987.123,
+     "bool1" : True, 
+     "dict1" : {"inner_dict1_int" : 555, "inner_dict_1_string": "hello"},
+     "list1" : [70, "five", 14.3],
+     "string1" : "abcde"
+
+     }
 
   def addPipe(self, processName, pipe):
     self.processMapping[processName] = pipe
     pipe.send(SM_COMMANDS.READY)
 
-  def getValue(string):
+  def getValue(self, string):
     return self.state[string]
     
   def start(self):
@@ -47,10 +46,12 @@ class StateManager(object):
 
       elif cmd_type == SM_COMMANDS.ADD:
         self.addPipe(request[1], request[2])
-
+      elif cmd_type == SM_COMMANDS.GET_VAL:
+        self.processMapping[PROCESS_NAMES.STUDENT_CODE].send(self.getValue("float1")) #only sends 1 val currently
       elif cmd_type == SM_COMMANDS.HELLO:
-        self.state[0] -= 1
-        self.processMapping[PROCESS_NAMES.STUDENT_CODE].send(self.state[0])
+        print("HELLO")
+        # self.state[0] -= 1
+        # self.processMapping[PROCESS_NAMES.STUDENT_CODE].send(self.state[0])
       # TODO: Add better error description
       else:
         self.badThingsQueue.put(BadThing(sys.exc_info(), "Unknown process name: %s" % (request,), event = BAD_EVENTS.UNKNOWN_PROCESS, printStackTrace = False))
